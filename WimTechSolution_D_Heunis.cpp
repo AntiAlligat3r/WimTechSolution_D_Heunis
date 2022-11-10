@@ -5,6 +5,7 @@
 #include <string>
 #include <math.h>
 #include<algorithm>
+
 using namespace std;
 
 struct CellTowers
@@ -17,7 +18,8 @@ struct CellTowerDistances
     string sCellID1,sCellID2;
     double dDistance;
 };
-struct CellTowerFrequencyAssignment{
+struct CellTowerFrequencyAssignment
+{
     string sCellID1,sCellID2;
     double dDistance;
     int iFrequency;
@@ -34,21 +36,21 @@ bool CellTowerSorting(CellTowerDistances CellDistance1,CellTowerDistances CellDi
 
 void FurthestCellTowersCalc(CellTowers cell1,CellTowers cell2,CellTowerDistances CellDistance)
 {
-    
+    //Struct just needs to be divided into 2 to get all the unique tower pairs
     for(int i = 0;i< size(cell1.sCellID);i++)
     {
-        for(int z = 0; z < size(cell1.sCellID);z++)
+        for(int z = 0; z < size(cell1.sCellID);z++)//double for loop to run entire list with all possibilities
         {
-            CellDistance.sCellID1 = cell1.sCellID[i];
+            CellDistance.sCellID1 = cell1.sCellID[i];//creating a tower pair
             CellDistance.sCellID2 = cell2.sCellID[z];
-            CellDistance.dDistance = LongLatDistance(cell1.dLongitude,cell2.dLongitude,cell1.dLatitude,cell2.dLatitude);
+            CellDistance.dDistance = LongLatDistance(cell1.dLongitude,cell2.dLongitude,cell1.dLatitude,cell2.dLatitude); //Calls LongLatDistance to calculate the distance between 2 towers
         }
     }
 }
 double LongLatDistance(double _dLongitude1,double _dLongitude2,double _dLatitude1,double _dLatitude2)
 {
     double _distance = 0.0,_haversineLatitude = 0.0,_harversineLongitude = 0.0;
-    const double RADIUS = 6371;
+    const double RADIUS = 6371;// Earths avg Radius in km
 
     _haversineLatitude = pow(sin(0.5 * (_dLatitude2 - _dLatitude1)),2); //sin²((θ₂ - θ₁)/2) -> sin²(0.5*(θ₂ - θ₁))
     _harversineLongitude = cos(_dLatitude1) * cos(_dLatitude2) * pow(sin(0.5 * (_dLongitude2 - _dLongitude1)),2); //cosθ₁⋅cosθ₂⋅sin²(0.5*(φ₂ - φ₁))
@@ -61,15 +63,15 @@ double LongLatDistance(double _dLongitude1,double _dLongitude2,double _dLatitude
 void txtStringSplit(string _sInput,string _sDelimiter, string *ptrInput)
 {
     int stringStart = 0;
-    int stringEnd = _sInput.find(_sDelimiter);
+    int stringEnd = _sInput.find(_sDelimiter); // finds the position of the given delimiter in the string _sInput
 
     int i = 0;
     while(stringEnd != -1)
     {
         //create array to capture each line in txt file that is broken up into the next "Relevant values", then use Pointers to read the data from the array before it is overwritten by next cycle
-        *(ptrInput + i) = _sInput.substr(stringStart, stringEnd - stringStart);
-        stringStart = stringEnd + _sDelimiter.size();
-        stringEnd = _sInput.find(_sDelimiter,stringStart);
+        *(ptrInput + i) = _sInput.substr(stringStart, stringEnd - stringStart);// Assigns part of a string to input array via pointers. looks for the delimiter and copies the string from start to the delimiter, exluding delimiter
+        stringStart = stringEnd + _sDelimiter.size(); //moving the starting point to the previous end point +1 to exlude delimiter
+        stringEnd = _sInput.find(_sDelimiter,stringStart);//moving the end point to the next delimiter
         i++;
     }
     i++;
@@ -77,6 +79,7 @@ void txtStringSplit(string _sInput,string _sDelimiter, string *ptrInput)
 }
 void FrequencyAssignment(CellTowerDistances CellDistance[],CellTowerFrequencyAssignment CellFrequency[])
 {
+    //this needs work, need to rethink the frequency assignment so that even though tower A and B are far away and C and D are far away, A and B cannot have the same frequency as tower C is next to tower A (for example)
     int numCellTowers = ((sizeof(CellDistance)/sizeof(CellDistance[0].sCellID1))/2); //half of the list is repeated
     int frequency = 110,iCount = 1;
     double towersPerFrequency = numCellTowers / 6; //6 Frequencies to work with
@@ -85,7 +88,7 @@ void FrequencyAssignment(CellTowerDistances CellDistance[],CellTowerFrequencyAss
     {
         if(iCount == towersPerFrequency)
         {
-            frequency++;
+            frequency++;//increments the frequency once max calculated frequency users are reached
         }
         CellFrequency[i].sCellID1 = CellDistance[i].sCellID1;
         CellFrequency[i].sCellID2 = CellDistance[i].sCellID2;
@@ -95,7 +98,42 @@ void FrequencyAssignment(CellTowerDistances CellDistance[],CellTowerFrequencyAss
         iCount++;
     }
 }
+void FrequencyAssignmentNew(CellTowerDistances CellDistance[],CellTowerFrequencyAssignment CellFrequency[])
+{
+    //This is a new approach I tried, not sure it works to eliminate the problem
+    int numCellTowers = ((sizeof(CellDistance)/sizeof(CellDistance[0].sCellID1))/2); //half of the list is repeated
+    int frequency = 110,iCount = 1;
+    double towersPerFrequency = numCellTowers / 6; //6 Frequencies to work with
+    towersPerFrequency = (int)round(towersPerFrequency);
+    for(int i = 0;i < numCellTowers;i++)
+    {
+        if(iCount == towersPerFrequency)
+        {
+            frequency++;//increments the frequency once max calculated frequency users are reached
+        }
+        for(int z = 0;z < numCellTowers;z++)
+        {
+            if((CellDistance[z].sCellID2 == CellDistance[i].sCellID1) && (CellDistance[z].dDistance < 100)  &&(CellDistance[z].dDistance > 0))
+            {
+                //if the distance is between 0m and 100m , a new frequency that is not used by the other close friends must be used 
+                if(frequency != 116)
+                    CellFrequency[i].iFrequency = frequency+1;
+                else
+                    CellFrequency[i].iFrequency = frequency-1;
+                break;
+            }
+        }
+        CellFrequency[i].sCellID1 = CellDistance[i].sCellID1;
+        CellFrequency[i].sCellID2 = CellDistance[i].sCellID2;
+        CellFrequency[i].dDistance = CellDistance[i].dDistance;
 
+        if(CellFrequency[i].iFrequency == NULL)
+            CellFrequency[i].iFrequency = frequency;
+
+        cout << "Frequency " << frequency << " has been assigned to towers "<<CellFrequency[i].sCellID1 <<" and "<< CellFrequency[i].sCellID2 <<" with a distance of "<< CellFrequency[i].dDistance <<endl;
+        iCount++;
+    }
+}
 int main()
 {
     //Declare Variables used by main
@@ -106,7 +144,7 @@ int main()
     string *ptr_arr;
 
     ptr_arr = arrProperties;
-    //Declare Struct CellTowers
+    //Declare Struct CellTowers with size 100
     struct CellTowers CellTowerList[100];
     struct CellTowerDistances CellDistance[100];
     struct CellTowerFrequencyAssignment CellFrequency[100];
@@ -205,17 +243,13 @@ int main()
 
     FrequencyAssignment(CellDistance,CellFrequency);
     
-
-    
-    
-
-    
-    
-    
-
-    
-    
-    
-
-    
+    return 0;
 };
+
+
+
+
+
+
+
+
